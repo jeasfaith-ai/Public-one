@@ -161,52 +161,82 @@ export async function* generateProjectContentStream(details: any) {
   }
 
   // 3. Sequential Generation of Chapters (Slower, Higher Quality)
-  const chapterSections = [
-    { key: 'chapter1', message: 'Writing Chapter 1: Introduction...', prompt: getChapter1Prompt(enrichedDetails), weight: 10 },
-    { key: 'chapter2', message: 'Writing Chapter 2: Literature Review...', prompt: getChapter2Prompt(enrichedDetails), weight: 10 },
-    { key: 'chapter3', message: 'Writing Chapter 3: Methodology...', prompt: getChapter3Prompt(enrichedDetails), weight: 10 },
-  ];
+  // Chapter 1
+  yield { progress: 45, message: 'Writing Chapter 1: Introduction...', section: 'processing', content: '' };
+  try {
+    const c1 = await generateContentWithRetry(model, getChapter1Prompt(enrichedDetails), { temperature: 0.7 });
+    yield { progress: 50, message: 'Completed Chapter 1', section: 'chapter1', content: cleanContent(c1) };
+  } catch (error) {
+    yield { progress: 50, message: 'Error in Chapter 1', section: 'chapter1', content: "Error generating Chapter 1." };
+  }
 
-  for (const section of chapterSections) {
-    yield { progress: Math.min(80, Math.round(progressCounter)), message: section.message, section: 'processing', content: '' };
-    try {
-      const content = await generateContentWithRetry(model, section.prompt, { temperature: 0.7 });
-      progressCounter += section.weight;
-      yield { 
-        progress: Math.min(80, Math.round(progressCounter)), 
-        message: `Completed ${section.key}`, 
-        section: section.key, 
-        content: cleanContent(content) 
-      };
-    } catch (error) {
-      yield { progress: progressCounter, message: `Error in ${section.key}`, section: section.key, content: "Error." };
-    }
+  // Chapter 2 (Split)
+  yield { progress: 52, message: 'Writing Chapter 2: Literature Review (Part 1)...', section: 'processing', content: '' };
+  let c2Part1 = "";
+  try {
+    c2Part1 = await generateContentWithRetry(model, getChapter2Part1Prompt(enrichedDetails), { temperature: 0.7 });
+  } catch (error) {
+    console.error("Error generating Chapter 2 Part 1:", error);
+    c2Part1 = "Error generating Conceptual & Theoretical Framework.";
+  }
+
+  yield { progress: 58, message: 'Writing Chapter 2: Literature Review (Part 2)...', section: 'processing', content: '' };
+  let c2Part2 = "";
+  try {
+    c2Part2 = await generateContentWithRetry(model, getChapter2Part2Prompt(enrichedDetails), { temperature: 0.7 });
+  } catch (error) {
+    console.error("Error generating Chapter 2 Part 2:", error);
+    c2Part2 = "Error generating Empirical Studies & Summary.";
+  }
+  
+  yield { progress: 65, message: 'Completed Chapter 2', section: 'chapter2', content: cleanContent(c2Part1 + "\n\n" + c2Part2) };
+
+  // Chapter 3
+  yield { progress: 68, message: 'Writing Chapter 3: Methodology...', section: 'processing', content: '' };
+  try {
+    const c3 = await generateContentWithRetry(model, getChapter3Prompt(enrichedDetails), { temperature: 0.7 });
+    yield { progress: 75, message: 'Completed Chapter 3', section: 'chapter3', content: cleanContent(c3) };
+  } catch (error) {
+    yield { progress: 75, message: 'Error in Chapter 3', section: 'chapter3', content: "Error generating Chapter 3." };
   }
 
   // 4. Special Handling for Chapter 4 (Results) - High Quality & "Thinking"
-  yield { progress: 80, message: 'Analyzing Data for Chapter 4...', section: 'processing', content: '' };
+  yield { progress: 78, message: 'Analyzing Data for Chapter 4...', section: 'processing', content: '' };
   await new Promise(resolve => setTimeout(resolve, 1500)); // Artificial delay for "analysis"
   
-  yield { progress: 82, message: 'Constructing Data Tables...', section: 'processing', content: '' };
+  yield { progress: 80, message: 'Constructing Data Tables (Section A)...', section: 'processing', content: '' };
+  let c4Part1 = "";
   try {
     // Use a slightly higher temperature or specific config if needed, but standard is fine with good prompt
-    const c4Content = await generateContentWithRetry(model, getChapter4Prompt(enrichedDetails), { 
+    c4Part1 = await generateContentWithRetry(model, getChapter4Part1Prompt(enrichedDetails), { 
       temperature: 0.5, // Lower temp for more precise data
     });
-    
-    yield { progress: 85, message: 'Refining Tables & Formatting...', section: 'processing', content: '' };
-    const refinedC4 = refineChapter4Content(cleanContent(c4Content));
-    
-    progressCounter += 10;
-    yield { 
-      progress: 90, 
-      message: 'Completed Chapter 4', 
-      section: 'chapter4', 
-      content: refinedC4 
-    };
   } catch (error) {
-    yield { progress: 90, message: 'Error in Chapter 4', section: 'chapter4', content: "Error generating results." };
+    console.error("Error generating Chapter 4 Part 1:", error);
+    c4Part1 = "Error generating Research Question Tables.";
   }
+
+  yield { progress: 85, message: 'Testing Hypotheses (Section B)...', section: 'processing', content: '' };
+  let c4Part2 = "";
+  try {
+    c4Part2 = await generateContentWithRetry(model, getChapter4Part2Prompt(enrichedDetails), { 
+      temperature: 0.5,
+    });
+  } catch (error) {
+    console.error("Error generating Chapter 4 Part 2:", error);
+    c4Part2 = "Error generating Hypothesis Tests.";
+  }
+    
+  yield { progress: 88, message: 'Refining Tables & Formatting...', section: 'processing', content: '' };
+  const fullC4 = c4Part1 + "\n\n" + c4Part2;
+  const refinedC4 = refineChapter4Content(cleanContent(fullC4));
+  
+  yield { 
+    progress: 90, 
+    message: 'Completed Chapter 4', 
+    section: 'chapter4', 
+    content: refinedC4 
+  };
 
   // 5. Chapter 5 & References & Appendices
   const finalSections = [
@@ -215,16 +245,21 @@ export async function* generateProjectContentStream(details: any) {
     { key: 'appendices', message: 'Creating Questionnaire...', prompt: getAppendixPrompt(enrichedDetails), weight: 2 },
   ];
 
+  let currentProgress = 90;
   for (const section of finalSections) {
-    yield { progress: progressCounter, message: section.message, section: 'processing', content: '' };
-    const content = await generateContentWithRetry(model, section.prompt, { temperature: 0.7 });
-    progressCounter += section.weight;
-    yield { 
-      progress: Math.min(98, Math.round(progressCounter)), 
-      message: `Completed ${section.key}`, 
-      section: section.key, 
-      content: cleanContent(content) 
-    };
+    yield { progress: currentProgress, message: section.message, section: 'processing', content: '' };
+    try {
+      const content = await generateContentWithRetry(model, section.prompt, { temperature: 0.7 });
+      currentProgress += section.weight;
+      yield { 
+        progress: Math.min(98, Math.round(currentProgress)), 
+        message: `Completed ${section.key}`, 
+        section: section.key, 
+        content: cleanContent(content) 
+      };
+    } catch (error) {
+      yield { progress: currentProgress, message: `Error in ${section.key}`, section: section.key, content: "Error." };
+    }
   }
 
   // 6. Final Plagiarism Check Simulation
@@ -399,6 +434,139 @@ const getChapter1Prompt = (details: any) => `
   - DO NOT use Markdown headers (like #, ##, ###). Use bold text for subheadings.
   - **CRITICAL:** Subheadings must follow the format **1.1 Background of the Study**.
   - **CRITICAL:** DO NOT include a "References" section at the end.
+`;
+
+const getChapter2Part1Prompt = (details: any) => `
+  Write **CHAPTER TWO: LITERATURE REVIEW (Part 1)** for the project "${details.topic}".
+  
+  ${TABLE_SYSTEM_INSTRUCTION}
+
+  **STRUCTURE:**
+  - **2.1 Conceptual Framework**: Identify different concepts relevant to the study, discuss each with accurate in-text citations, provide operational definitions for each concept and link them to the study. Submerge related sub-themes here using appropriate levels of heading and current literature.
+  - **2.2 Theoretical Framework**: Identify theories relevant to the study, state each as presented by theorists (name and year), relate each theory to the study. Present the theoretical framework using a professional schema.
+  
+  **CRITICAL SCHEMA INSTRUCTION:**
+  You MUST generate a schema for the Theoretical Framework using the following JSON format inside [SCHEMA] tags.
+  
+  [SCHEMA]
+  {
+    "type": "flowchart",
+    "title": "Fig. 1: Theoretical Framework of the Study",
+    "nodes": [
+      {"id": "T1", "text": "Theory 1 Name"},
+      {"id": "T2", "text": "Theory 2 Name"},
+      {"id": "S", "text": "Current Study"}
+    ],
+    "links": [
+      {"from": "T1", "to": "S"},
+      {"from": "T2", "to": "S"}
+    ]
+  }
+  [/SCHEMA]
+  
+  Follow the schema with a brief verbal description.
+
+  **IMPORTANT RULES:**
+  - **DO NOT** include the chapter title ("CHAPTER TWO: ...") in your response.
+  - **NO TABLES:** Do not use any tables in this part.
+  - **FIGURES:** The only figure allowed is the [SCHEMA] in section 2.2.
+  - **LANGUAGE & STYLE:** Academic tone, third person.
+  - **CRITICAL:** Subheadings must follow the format **2.1 Conceptual Framework**.
+`;
+
+const getChapter2Part2Prompt = (details: any) => `
+  Write **CHAPTER TWO: LITERATURE REVIEW (Part 2)** for the project "${details.topic}".
+  
+  ${TABLE_SYSTEM_INSTRUCTION}
+
+  **STRUCTURE:**
+  - **2.3 Review of Empirical Studies**: Identify related empirical studies. Review each in detail: author, year, title or purpose, number of research questions and hypotheses, and the design. Indicate how the current study will address the weaknesses and gaps identified, relating each reviewed study to the current one.
+  - **2.4 Summary of Literature Review**: Restate operational definitions of each concept and relate to study. Restate relevant theories and relate to each other and the study. State number of reviewed empirical studies. Restate weaknesses and gaps already identified and indicate how this study addresses them.
+
+  **IMPORTANT RULES:**
+  - **DO NOT** include the chapter title.
+  - **NO TABLES OR FIGURES.**
+  - **LANGUAGE & STYLE:** Academic tone, third person.
+  - **CRITICAL:** Subheadings must follow the format **2.3 Review of Empirical Studies**.
+`;
+
+const getChapter4Part1Prompt = (details: any) => `
+  Write **CHAPTER FOUR: RESULTS (Section A)** for the project "${details.topic}".
+  
+  ${TABLE_SYSTEM_INSTRUCTION}
+
+  **STRUCTURE:**
+  **Section A: Answers to Research Questions** (Descriptive Statistics)
+  
+  Provide exactly **three (3) tables** (Table 1, Table 2, Table 3) corresponding to Research Question 1, Research Question 2, and Research Question 3.
+  
+  **CRITICAL:** You MUST use EXACTLY these three Research Questions:
+  1. ${details.researchQuestions[0]}
+  2. ${details.researchQuestions[1]}
+  3. ${details.researchQuestions[2]}
+
+  **FOR EACH RESEARCH QUESTION:**
+  1. **Figure (Graph/Chart):** Provide a professional ${details.figureType || 'Graph'} representing the data BEFORE the table.
+     - Labeling: Start from **Fig. 2**, then **Fig. 3**, **Fig. 4**.
+     - Use [GRAPH] or [SCHEMA] tags exactly as defined below.
+  2. **Introduction:** Write a sentence introducing the table.
+  3. **Table:** Insert the Markdown table (Likert scale: SA, A, D, SD).
+     - **CRITICAL:** The LAST ROW must be the **Cluster Mean**.
+  4. **Interpretation:** Write a detailed paragraph analyzing the table.
+
+  ${details.figureType === 'Diagram' ? `
+  **DIAGRAM FORMAT:**
+  [SCHEMA]
+  {
+    "type": "flowchart",
+    "nodes": [{"id": "N1", "text": "Step 1"}, {"id": "N2", "text": "Step 2"}],
+    "links": [{"from": "N1", "to": "N2"}]
+  }
+  [/SCHEMA]
+  ` : `
+  **GRAPH FORMAT:**
+  [GRAPH]
+  {
+    "type": "${details.figureType === 'Bar Chart' ? 'bar' : 'line'}",
+    "title": "Fig. X: Title of the Figure",
+    "labels": ["Label 1", "Label 2", "Label 3", "Label 4"],
+    "data": [3.5, 2.8, 3.2, 3.9]
+  }
+  [/GRAPH]
+  `}
+
+  **IMPORTANT RULES:**
+  - **DO NOT** include the chapter title ("CHAPTER FOUR: ...") in your response.
+  - **Tables:** Real Markdown tables, no vertical lines.
+  - **Interpretation:** Mandatory paragraph after every table.
+`;
+
+const getChapter4Part2Prompt = (details: any) => `
+  Write **CHAPTER FOUR: RESULTS (Section B)** for the project "${details.topic}".
+  
+  ${TABLE_SYSTEM_INSTRUCTION}
+
+  **STRUCTURE:**
+  **Section B: Test of Hypotheses** (Inferential Statistics)
+  
+  Provide exactly **three (3) tables** (Table 4, Table 5, Table 6) corresponding to Hypothesis 1, Hypothesis 2, and Hypothesis 3.
+  
+  **CRITICAL:** You MUST use EXACTLY these three Null Hypotheses:
+  1. ${details.hypotheses[0]}
+  2. ${details.hypotheses[1]}
+  3. ${details.hypotheses[2]}
+
+  **FOR EACH HYPOTHESIS:**
+  1. **Introduction:** Write a sentence introducing the hypothesis test.
+  2. **Table:** Insert the Markdown table (t-test or ANOVA).
+  3. **Interpretation:** Write a detailed paragraph analyzing the result (p-value decision rule).
+
+  **IMPORTANT RULES:**
+  - **DO NOT** include the chapter title.
+  - **NO FIGURES** in this section.
+  - **Tables:** Real Markdown tables, no vertical lines.
+  - **Interpretation:** Mandatory paragraph after every table.
+  - **4.2 Major Findings of the Study**: After the tables, list the major findings in bullet points.
 `;
 
 const getChapter2Prompt = (details: any) => `

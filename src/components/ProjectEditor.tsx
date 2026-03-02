@@ -221,6 +221,32 @@ export default function ProjectEditor({ project, onBack, onSave, onNavigate }: P
     setDetails({ ...details, [key]: value });
   };
 
+  const formatContentForDisplay = (text: string) => {
+    if (!text) return '*No content yet.*';
+    
+    // Replace [GRAPH]...[/GRAPH] with a placeholder
+    let formatted = text.replace(/\[GRAPH\]([\s\S]*?)\[\/GRAPH\]/g, (match, jsonStr) => {
+      try {
+        const data = JSON.parse(jsonStr);
+        return `\n> 📊 **Figure: ${data.title || 'Graph'}**\n> *(Visual graph will be generated in the PDF)*\n`;
+      } catch (e) {
+        return `\n> 📊 **Figure**\n> *(Visual graph will be generated in the PDF)*\n`;
+      }
+    });
+
+    // Replace [SCHEMA]...[/SCHEMA] with a placeholder
+    formatted = formatted.replace(/\[SCHEMA\]([\s\S]*?)\[\/SCHEMA\]/g, (match, jsonStr) => {
+      try {
+        const data = JSON.parse(jsonStr);
+        return `\n> 🧩 **Schema: ${data.title || 'Diagram'}**\n> *(Visual diagram will be generated in the PDF)*\n`;
+      } catch (e) {
+        return `\n> 🧩 **Schema**\n> *(Visual diagram will be generated in the PDF)*\n`;
+      }
+    });
+
+    return formatted;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -581,7 +607,7 @@ export default function ProjectEditor({ project, onBack, onSave, onNavigate }: P
               />
             ) : (
               <div className="h-full overflow-y-auto p-8 md:p-12 prose dark:prose-invert prose-slate max-w-none">
-                <ReactMarkdown>{String(content[activeTab] || '*No content yet.*')}</ReactMarkdown>
+                <ReactMarkdown>{formatContentForDisplay(content[activeTab])}</ReactMarkdown>
               </div>
             )}
           </div>
