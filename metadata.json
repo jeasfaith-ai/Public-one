@@ -1,0 +1,7 @@
+{
+  "name": "KStress No More",
+  "description": "Professional AI-powered academic project writing assistant. Generate topics, chapters, and defense scripts for UNN and affiliated students.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

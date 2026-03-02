@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-bg: #0f172a;
+  --color-brand-card: #1e293b;
+  --color-brand-accent: #10b981;
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: #f8fafc;
+}
+
+.animated-gradient-background {
+  background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #10b981);
+  background-size: 400% 400%;
+  animation: gradientAnimation 15s ease infinite;
+}
+
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

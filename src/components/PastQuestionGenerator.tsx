@@ -1,0 +1,289 @@
+import { useState } from 'react';
+import { motion } from 'motion/react';
+import { ArrowLeft, BookOpen, Loader2, Download, HelpCircle, FileQuestion, School } from 'lucide-react';
+import { generateContentWithRetry } from '../utils/gemini';
+import { jsPDF } from "jspdf";
+
+interface PastQuestionGeneratorProps {
+  onBack: () => void;
+}
+
+const SCHOOLS = [
+  "University of Nigeria, Nsukka (UNN)",
+  "Nwafor Orizu College of Education, Nsugbe (NOCEN)",
+  "Other"
+];
+
+export default function PastQuestionGenerator({ onBack }: PastQuestionGeneratorProps) {
+  const [course, setCourse] = useState('');
+  const [school, setSchool] = useState(SCHOOLS[0]);
+  const [level, setLevel] = useState('');
+  const [semester, setSemester] = useState('First Semester');
+  const [department, setDepartment] = useState('');
+  const [questions, setQuestions] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!course.trim()) return;
+    
+    setIsGenerating(true);
+    try {
+      const prompt = `
+        Act as an expert academic examiner and database for ${school}.
+        You have mastered all course codes and titles for University of Nigeria, Nsukka (UNN) and Nwafor Orizu College of Education (NOCEN).
+        
+        Task: Generate a comprehensive set of Past Questions for the course: "${course}".
+        
+        Context:
+        - School: ${school}
+        - Semester: ${semester}
+        - Level: ${level}
+        - Department: ${department}
+        
+        Strict Guidelines:
+        1. VALIDATE COURSE: Ensure the course code/title "${course}" is a REAL course offered at ${school}. 
+           - For UNN: Codes like GSP 101, COS 101, MTH 111, etc. are common.
+           - For NOCEN: Codes like GSE 101, EDU 111, etc. are common.
+           - If the code provided is NOT a standard UNN or NOCEN code, try to match it to the closest valid one or generate questions based on the standard curriculum for that subject at ${school}.
+        2. SEMESTER ACCURACY: Ensure the topics covered are specific to the ${semester} curriculum.
+        
+        Format Requirements:
+        1. **Section A: Objective Questions (CBT Mode)**
+           - Generate 50 multiple-choice questions.
+           - Each question must have 4 options (A, B, C, D).
+           - Indicate the correct answer clearly at the end of each question.
+        
+        2. **Section B: Theory Questions**
+           - Generate 5 original theory/essay questions that are highly likely to be asked in ${school} exams.
+        
+        General:
+        - Format clearly for reading.
+        - DO NOT use Markdown formatting like "###" or "**". Use plain text headers.
+        - Output ONLY the questions. No conversational filler.
+      `;
+      
+      const result = await generateContentWithRetry('gemini-3-flash-preview', prompt);
+      setQuestions(result || 'Sorry, I could not generate past questions at this time.');
+    } catch (error) {
+      console.error(error);
+      setQuestions('An error occurred while generating past questions.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Logo/Header
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("STRESS NO MORE", pageWidth / 2, 17, { align: "center" });
+
+    // Title
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    const schoolName = school === "Other" ? "PAST QUESTIONS" : school.toUpperCase();
+    doc.text(schoolName, pageWidth / 2, 35, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text(`${semester.toUpperCase()} PAST QUESTIONS`, pageWidth / 2, 45, { align: "center" });
+    
+    doc.setFontSize(11);
+    doc.text(`Course: ${course.toUpperCase()} | Level: ${level || 'N/A'}`, pageWidth / 2, 55, { align: "center" });
+
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(200);
+    doc.line(margin, 60, pageWidth - margin, 60);
+
+    // Content
+    doc.setFontSize(10);
+    doc.setFont("times", "normal");
+    
+    // Split text to fit page width
+    const splitContent = doc.splitTextToSize(questions, contentWidth);
+    
+    let cursorY = 70;
+    const lineHeight = 5;
+
+    for (let i = 0; i < splitContent.length; i++) {
+      if (cursorY > pageHeight - margin) {
+        doc.addPage();
+        cursorY = margin;
+      }
+      doc.text(splitContent[i], margin, cursorY);
+      cursorY += lineHeight;
+    }
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Generated by Stress No More`, pageWidth / 2, pageHeight - 10, { align: "center" });
+    }
+
+    doc.save(`${course.replace(/\s+/g, '_')}_Past_Questions.pdf`);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-slate-100 p-4 sm:p-6 pb-24">
+      <div className="max-w-4xl mx-auto">
+        <button 
+          onClick={onBack}
+          className="flex items-center text-slate-400 hover:text-white mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 mr-2" />
+          Back to Services
+        </button>
+
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 flex items-center">
+            <FileQuestion className="w-8 h-8 mr-3 text-orange-500" />
+            Past Question Generator
+          </h1>
+          <p className="text-slate-400 text-sm">Generate authentic CBT-style and theory past questions for any course.</p>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Input Section */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+              <h3 className="font-semibold text-white mb-4 flex items-center">
+                <BookOpen className="w-5 h-5 mr-2 text-emerald-500" />
+                Course Details
+              </h3>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400 uppercase">Select School</label>
+                <div className="relative">
+                  <select
+                    value={school}
+                    onChange={(e) => setSchool(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none appearance-none"
+                  >
+                    {SCHOOLS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <School className="absolute right-3 top-3.5 w-4 h-4 text-slate-500 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400 uppercase">Select Semester</label>
+                <select
+                  value={semester}
+                  onChange={(e) => setSemester(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none"
+                >
+                  <option value="First Semester">First Semester</option>
+                  <option value="Second Semester">Second Semester</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400 uppercase">Course Code / Title</label>
+                <input
+                  type="text"
+                  value={course}
+                  onChange={(e) => setCourse(e.target.value)}
+                  placeholder="e.g. GSP 101 or Use of English"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-500 italic">Enter valid UNN (e.g. GSP 101) or NOCEN (e.g. GSE 101) codes.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase">Level (Optional)</label>
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none"
+                  >
+                    <option value="">Select Level</option>
+                    <option value="100">100 Level</option>
+                    <option value="200">200 Level</option>
+                    <option value="300">300 Level</option>
+                    <option value="400">400 Level</option>
+                    <option value="500">500 Level</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase">Department (Optional)</label>
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="e.g. Computer Science"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || !course.trim()}
+              className="w-full py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-bold text-lg shadow-lg transition-all transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileQuestion className="w-6 h-6 mr-2" />
+                  Get Questions
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Output Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 h-full min-h-[500px] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-white">Generated Questions</h3>
+                {questions && (
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 bg-slate-800/50 rounded-lg p-6 overflow-y-auto max-h-[600px] border border-slate-700/50">
+                {questions ? (
+                  <div className="whitespace-pre-wrap break-words font-serif leading-relaxed text-slate-300 text-sm">
+                    {questions}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 opacity-50">
+                    <FileQuestion className="w-16 h-16" />
+                    <p className="text-center max-w-xs">
+                      Select your school, enter a course, and click 'Get Questions' to generate.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
