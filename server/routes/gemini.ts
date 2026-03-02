@@ -266,9 +266,10 @@ router.post('/generate', protect, async (req: AuthenticatedRequest, res) => {
   }
 
   // Set headers for streaming
-  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Use text/plain for simple chunking
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders(); // Force headers to be sent
 
   try {
     const stream = generateContentStreamWithRetries({
@@ -283,9 +284,8 @@ router.post('/generate', protect, async (req: AuthenticatedRequest, res) => {
     for await (const chunk of stream) {
       const text = chunk.text || '';
       if (text) {
-        // Send data as SSE format or just raw text chunks?
-        // Let's use a simple chunked text format for simplicity with our frontend reader
         res.write(text);
+        // Optional: res.flush() if using compression middleware, but express usually handles it
       }
     }
     

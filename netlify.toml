@@ -5,6 +5,8 @@
 
 [functions]
   node_bundler = "esbuild"
+  included_files = ["server/**/*"]
+  external_node_modules = ["@google/genai", "express", "serverless-http", "cors", "dotenv", "bcryptjs", "@supabase/supabase-js"]
 
 [[redirects]]
   from = "/api/*"

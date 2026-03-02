@@ -50,7 +50,9 @@ export default function TopicGenerator({ onSelectTopic, onBack }: TopicGenerator
     } catch (error: any) {
       console.error("Error generating topics:", error);
       setTopics([
-        `Failed to call the Gemini API. ${error.message || "Please try again."}`,
+        `Error: ${error.message || "Unknown error occurred."}`,
+        `Details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+        "Please check your internet connection and try again."
       ]);
     } finally {
       setIsGenerating(false);
