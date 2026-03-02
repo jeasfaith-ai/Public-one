@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Calculator, Loader2, Download, AlertTriangle, TrendingDown } from 'lucide-react';
 import { jsPDF } from "jspdf";
 

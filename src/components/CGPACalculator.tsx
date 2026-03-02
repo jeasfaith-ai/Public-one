@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Calculator, Plus, Trash2, CheckCircle2, AlertCircle, RefreshCw, GraduationCap, Download, User, BookOpen } from 'lucide-react';
 import { generateContentWithRetry } from '../utils/gemini';
 import { jsPDF } from "jspdf";

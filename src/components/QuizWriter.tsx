@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, BrainCircuit, Loader2, Copy, Check, HelpCircle, Download } from 'lucide-react';
 import { generateContentWithRetry } from '../utils/gemini';
 import ReactMarkdown from 'react-markdown';

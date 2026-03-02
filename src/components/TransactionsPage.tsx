@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Wallet, X, Trash2, FileText } from 'lucide-react';
 import { UserContext } from '../App';
 import { clientFetch } from '../utils/api';

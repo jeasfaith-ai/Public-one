@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Save, Edit3, FileText, Download, Check, Presentation, Loader2, X, ShieldAlert, BookOpen, Settings } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { UserContext } from '../App';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Wand2, Loader2, Copy, Check, RefreshCw, Eraser, Feather } from 'lucide-react';
 import { generateContentWithRetry } from '../utils/gemini';
 

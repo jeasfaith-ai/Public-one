@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect, AuthenticatedRequest } from '../middleware/auth';
-import { generateContentWithRetries, hasKeys } from '../utils/geminiApi';
+import { generateContentWithRetries, generateContentStreamWithRetries, hasKeys } from '../utils/geminiApi';
 import { ThinkingLevel } from '@google/genai';
 
 const router = express.Router();
@@ -265,8 +265,13 @@ router.post('/generate', protect, async (req: AuthenticatedRequest, res) => {
     });
   }
 
+  // Set headers for streaming
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
   try {
-    const response = await generateContentWithRetries({
+    const stream = generateContentStreamWithRetries({
       model: model || 'gemini-3-flash-preview',
       contents: finalContents,
       config: {
@@ -275,14 +280,29 @@ router.post('/generate', protect, async (req: AuthenticatedRequest, res) => {
       }
     });
 
-    res.json({ text: response.text });
+    for await (const chunk of stream) {
+      const text = chunk.text || '';
+      if (text) {
+        // Send data as SSE format or just raw text chunks?
+        // Let's use a simple chunked text format for simplicity with our frontend reader
+        res.write(text);
+      }
+    }
+    
+    res.end();
   } catch (error: any) {
     console.error("Gemini Generate Error:", error);
-    // Return the actual error message to help debugging
-    res.status(500).json({ 
-      error: error.message || "Failed to generate content with Gemini.",
-      details: error.toString()
-    });
+    // If headers haven't been sent, we can send a JSON error
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: error.message || "Failed to generate content with Gemini.",
+        details: error.toString()
+      });
+    } else {
+      // If streaming started, we can't send a proper error status, 
+      // but we can end the stream.
+      res.end();
+    }
   }
 });
 

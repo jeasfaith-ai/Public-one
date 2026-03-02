@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Book, Globe, FileText, X, Save } from 'lucide-react';
 import { Citation } from '../types';
 

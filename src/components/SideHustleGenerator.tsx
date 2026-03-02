@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Lightbulb, Loader2, Download, DollarSign, Target, MapPin } from 'lucide-react';
 import { generateContentWithRetry } from '../utils/gemini';
 import { jsPDF } from "jspdf";

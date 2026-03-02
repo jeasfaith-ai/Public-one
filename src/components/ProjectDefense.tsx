@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BookOpen, CheckCircle2, Loader2, MessageSquare, Mic, Play, ShieldCheck, User, Download, Presentation, HelpCircle, X } from 'lucide-react';
 import { UserContext } from '../App';
 import { clientFetch } from '../utils/api';

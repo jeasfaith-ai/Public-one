@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Download, Edit2, Save, Lock, Wallet, X, Presentation, Settings } from 'lucide-react';
 import { ProjectContent, ProjectDetails, PdfOptions } from '../types';
 import { DEPARTMENTS } from '../constants';

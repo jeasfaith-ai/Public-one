@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Clock, CheckCircle2, AlertCircle, FileText, Download, Wallet, ArrowRight, ArrowLeft, Plus, Eye, X, Edit2, History, LogOut, Save, User, Presentation, Check } from 'lucide-react';
 import { UserContext } from '../App';
 import { DEPARTMENTS } from '../constants';

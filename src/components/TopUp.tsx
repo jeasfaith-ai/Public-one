@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Copy, Check, Loader2, ArrowLeft, Banknote, Landmark, Wallet, CheckCircle2 } from 'lucide-react';
 import { UserContext } from '../App';
 import { clientFetch } from '../utils/api';

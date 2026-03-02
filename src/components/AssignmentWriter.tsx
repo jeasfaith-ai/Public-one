@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, BookOpen, FileText, Download, Loader2, User, Calendar, Hash, School, GraduationCap } from 'lucide-react';
 import { generateContentWithRetry } from '../utils/gemini';
 import { jsPDF } from "jspdf";

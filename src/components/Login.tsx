@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { GraduationCap, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { clientFetch } from '../utils/api';
 import { UserContext } from '../App';

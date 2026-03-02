@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Loader2, CheckCircle } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
 import { generateContentWithRetry } from '../utils/gemini';
