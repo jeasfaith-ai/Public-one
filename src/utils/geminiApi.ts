@@ -1,12 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { clientFetch } from "./api";
+import { supabase } from "./supabase";
 
 // Cache for API keys to avoid fetching on every request
 let cachedKeys: string[] = [];
 let keyFetchPromise: Promise<string[]> | null = null;
 
 // Fetch keys from backend
-const fetchKeys = async (): Promise<string[]> => {
+const fetchKeysFromBackend = async (): Promise<string[]> => {
   if (cachedKeys.length > 0) return cachedKeys;
   if (keyFetchPromise) return keyFetchPromise;
 
@@ -14,23 +15,20 @@ const fetchKeys = async (): Promise<string[]> => {
     try {
       console.log("[Gemini Client] Fetching API keys from backend...");
       const res = await clientFetch('/api/gemini/keys');
-      if (!res.ok) throw new Error("Failed to fetch API keys");
+      if (!res.ok) {
+        console.warn(`[Gemini Client] Backend fetch failed with status: ${res.status}`);
+        return [];
+      }
       const data = await res.json();
       if (data.keys && Array.isArray(data.keys) && data.keys.length > 0) {
         cachedKeys = data.keys;
-        console.log(`[Gemini Client] Loaded ${cachedKeys.length} keys.`);
+        console.log(`[Gemini Client] Loaded ${cachedKeys.length} keys from backend.`);
         return cachedKeys;
       }
-      throw new Error("No keys returned from backend");
+      return [];
     } catch (error) {
-      console.error("[Gemini Client] Error fetching keys:", error);
-      // Fallback to env var if available in build (unlikely in production if not exposed)
-      const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (envKey) {
-        console.log("[Gemini Client] Falling back to VITE_GEMINI_API_KEY");
-        return [envKey];
-      }
-      throw error;
+      console.warn("[Gemini Client] Error fetching keys from backend:", error);
+      return [];
     } finally {
       keyFetchPromise = null;
     }
@@ -51,7 +49,58 @@ const clients: GeminiClientState[] = [];
 const initializeClients = async () => {
   if (clients.length > 0) return;
 
-  const keys = await fetchKeys();
+  const keys = new Set<string>();
+
+  // 1. Try fetching from Backend API
+  const backendKeys = await fetchKeysFromBackend();
+  backendKeys.forEach(k => keys.add(k));
+
+  // 2. Try fetching from Supabase (Direct DB Access)
+  if (keys.size === 0 && supabase) {
+    try {
+      console.log("[Gemini Client] Attempting to fetch keys from Supabase...");
+      const { data: setting, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'gemini_api_keys')
+        .single();
+      
+      if (setting && setting.value) {
+        try {
+          const dbKeys = JSON.parse(setting.value);
+          if (Array.isArray(dbKeys)) {
+            dbKeys.forEach((k: string) => {
+              if (k && typeof k === 'string' && k.trim()) keys.add(k.trim());
+            });
+            console.log(`[Gemini Client] Loaded ${keys.size} keys from Supabase.`);
+          }
+        } catch (e) {
+          console.error("[Gemini Client] Failed to parse gemini_api_keys from DB:", e);
+        }
+      }
+    } catch (err) {
+      console.error("[Gemini Client] Error fetching Gemini keys from DB:", err);
+    }
+  }
+
+  // 3. Fallback to Env Vars (Vite Build-Time)
+  if (keys.size === 0) {
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey) {
+      console.log("[Gemini Client] Falling back to VITE_GEMINI_API_KEY");
+      keys.add(envKey);
+    }
+    
+    // Check for comma-separated keys
+    const multiKeys = import.meta.env.VITE_GEMINI_API_KEYS;
+    if (multiKeys) {
+      multiKeys.split(',').forEach((key: string) => {
+        if (key.trim()) keys.add(key.trim());
+      });
+    }
+  }
+
+  // Initialize Clients
   keys.forEach(apiKey => {
     clients.push({
       apiKey,
@@ -60,10 +109,77 @@ const initializeClients = async () => {
       rateLimitResetTime: 0
     });
   });
+
+  if (clients.length === 0) {
+    console.error("[Gemini Client] CRITICAL: No API keys found from any source.");
+  }
 };
+
+// Fallback to backend proxy if client-side fails
+async function* generateContentViaBackendProxy(params: any): AsyncGenerator<any> {
+  console.log("[Gemini Client] Falling back to Backend Proxy...");
+  try {
+    // Prepare payload for backend
+    // The backend expects { model, contents, config }
+    // We need to ensure contents is in a format the backend understands
+    // The backend uses the same SDK, so passing params.contents directly (if formatted) should work
+    // But params.contents here might be raw string or array.
+    
+    // Let's format it simply for the backend
+    let finalContents = params.contents;
+    if (Array.isArray(params.contents) && params.contents[0]?.parts) {
+      // It's already formatted for SDK, backend should handle it
+    } else if (typeof params.contents === 'string') {
+      // String is fine
+    }
+
+    const response = await clientFetch('/api/gemini/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: params.model,
+        contents: finalContents,
+        config: params.config
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend proxy failed with status: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error("Backend proxy returned no body");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      // Backend sends raw text chunks
+      if (chunk) {
+        yield { text: chunk };
+      }
+    }
+  } catch (error: any) {
+    console.error("[Gemini Client] Backend proxy failed:", error);
+    throw new Error(`All methods failed. Client: Failed to fetch. Backend: ${error.message}`);
+  }
+}
 
 export async function* generateContentStreamWithRetries(params: any): AsyncGenerator<any> {
   await initializeClients();
+
+  // If no clients, try backend proxy immediately
+  if (clients.length === 0) {
+    console.warn("[Gemini Client] No client keys. Using backend proxy.");
+    yield* generateContentViaBackendProxy(params);
+    return;
+  }
 
   const now = Date.now();
   // Reset rate limits if time passed
@@ -77,7 +193,6 @@ export async function* generateContentStreamWithRetries(params: any): AsyncGener
   // Get available clients
   let availableClients = clients.filter(c => !c.isRateLimited);
   if (availableClients.length === 0) {
-    // If all rate limited, try the one with oldest reset time or just all of them
     console.warn("[Gemini Client] All keys rate limited. Retrying with all keys...");
     availableClients = [...clients];
   }
@@ -142,7 +257,13 @@ export async function* generateContentStreamWithRetries(params: any): AsyncGener
     }
   }
 
-  throw lastError || new Error("All Gemini API keys failed.");
+  // If all client-side attempts failed, try backend proxy
+  console.warn("[Gemini Client] All client keys failed. Falling back to backend proxy.");
+  try {
+    yield* generateContentViaBackendProxy(params);
+  } catch (backendError: any) {
+    throw lastError || backendError;
+  }
 }
 
 export async function generateContentWithRetries(params: any): Promise<any> {
