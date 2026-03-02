@@ -31,7 +31,7 @@ router.post('/deduct', protect, async (req: AuthenticatedRequest, res) => {
     }
 
     const newBalance = currentBalance - deductAmount;
-    const newCredits = Math.floor(newBalance / 10000); // Also fixed the 1000 to 10000 here
+    const newCredits = Math.floor(newBalance / 1000); // Reverted 10000 back to 1000 to restore original logic
 
     // Update balance and sync credits
     const { error: updateError } = await supabase
@@ -87,7 +87,7 @@ router.post('/deduct-project-credit', protect, async (req: AuthenticatedRequest,
       .in('key', ['project_cost_credits', 'credit_value_naira']);
 
     const costInCredits = Number(settings?.find(s => s.key === 'project_cost_credits')?.value || '1');
-    const creditValueNaira = Number(settings?.find(s => s.key === 'credit_value_naira')?.value || '10000');
+    const creditValueNaira = Number(settings?.find(s => s.key === 'credit_value_naira')?.value || '1000');
     const costInNaira = costInCredits * creditValueNaira;
 
     let updateData = {};
@@ -190,7 +190,7 @@ router.post('/verify', protect, async (req: AuthenticatedRequest, res) => {
     if (fetchError || !user) throw fetchError || new Error('User not found');
 
     const newBalance = (user.balance || 0) + parseFloat(amount);
-    const newCredits = Math.floor(newBalance / 10000);
+    const newCredits = Math.floor(newBalance / 1000);
 
     await supabase
       .from('users')

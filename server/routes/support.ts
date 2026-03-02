@@ -18,7 +18,7 @@ router.get('/project-cost', async (req, res) => {
       .in('key', ['project_cost_credits', 'credit_value_naira']);
 
     const costInCredits = settings?.find(s => s.key === 'project_cost_credits')?.value || '1';
-    const creditValueNaira = settings?.find(s => s.key === 'credit_value_naira')?.value || '10000';
+    const creditValueNaira = settings?.find(s => s.key === 'credit_value_naira')?.value || '1000';
 
     console.log('Project cost settings:', { costInCredits, creditValueNaira });
     res.json({ 

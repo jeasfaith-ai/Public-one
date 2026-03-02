@@ -112,7 +112,7 @@ async function seedAdmin() {
       { key: 'paymentAmount', value: '5000' },
       { key: 'pptPaymentAmount', value: '5000' },
       { key: 'project_cost_credits', value: '1' },
-      { key: 'credit_value_naira', value: '10000' },
+      { key: 'credit_value_naira', value: '1000' },
       { key: 'paymentAccounts', value: '[{"bankName":"WEMA BANK PLC","accountNumber":"8543944389","accountName":"rtechsse"},{"bankName":"CASHCONNET MICROFINANCE BANK","accountNumber":"9912023600","accountName":"rtechsse"},{"bankName":"STERLING BANK PLC","accountName":"8513808366","accountName":"rtechsse"}]' }
     ];
 

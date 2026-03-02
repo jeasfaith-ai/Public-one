@@ -105,8 +105,20 @@ export async function* generateProjectContentStream(details: any) {
   
   // NEW: Pre-generate Core Structure (RQs & Hypotheses) for Consistency
   // This is the ONLY blocking step because chapters depend on it.
-  yield { progress: 15, message: "Structuring Research Framework...", section: 'planning', content: '' };
-  const coreStructure = await generateCoreStructure(details, model);
+  yield { progress: 15, message: "Structuring Research Framework...", section: 'processing', content: '' };
+  let coreStructure;
+  let coreAttempts = 0;
+  while (coreAttempts < 3) {
+    try {
+      coreAttempts++;
+      coreStructure = await generateCoreStructure(details, model);
+      break;
+    } catch (error) {
+      console.error(`Failed to generate core structure (Attempt ${coreAttempts}):`, error);
+      if (coreAttempts >= 3) throw error;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
   
   // Update details with the fixed structure so all chapters use the SAME questions
   const enrichedDetails = {
@@ -128,16 +140,24 @@ export async function* generateProjectContentStream(details: any) {
 
   // Execute Front Matter in Parallel
   const frontMatterPromises = frontMatterSections.map(async (section) => {
-    try {
-      const content = await generateContentWithRetry(model, section.prompt, { 
-        temperature: 0.7,
-        thinkingConfig: { thinkingLevel: 'LOW' }
-      });
-      return { ...section, content: cleanContent(content), success: true };
-    } catch (error) {
-      console.error(`Failed to generate ${section.key}:`, error);
-      return { ...section, content: "Error generating content.", success: false };
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        attempts++;
+        const content = await generateContentWithRetry(model, section.prompt, { 
+          temperature: 0.7,
+          thinkingConfig: { thinkingLevel: 'LOW' }
+        });
+        return { ...section, content: cleanContent(content), success: true };
+      } catch (error) {
+        console.error(`Failed to generate ${section.key} (Attempt ${attempts}):`, error);
+        if (attempts >= 3) {
+          return { ...section, content: "Error generating content.", success: false };
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
+    return { ...section, content: "Error generating content.", success: false };
   });
 
   // Yield Front Matter results as they finish
@@ -163,109 +183,165 @@ export async function* generateProjectContentStream(details: any) {
   // 3. Sequential Generation of Chapters (Slower, Higher Quality)
   // Chapter 1
   yield { progress: 45, message: 'Writing Chapter 1: Introduction...', section: 'processing', content: '' };
-  try {
-    const c1 = await generateContentWithRetry(model, getChapter1Prompt(enrichedDetails), { temperature: 0.7 });
-    yield { progress: 50, message: 'Completed Chapter 1', section: 'chapter1', content: cleanContent(c1) };
-  } catch (error) {
-    yield { progress: 50, message: 'Error in Chapter 1', section: 'chapter1', content: "Error generating Chapter 1." };
-  }
-
-  // Chapter 2 (Split)
-  yield { progress: 52, message: 'Writing Chapter 2: Literature Review (Part 1)...', section: 'processing', content: '' };
-  let c2Part1 = "";
-  try {
-    c2Part1 = await generateContentWithRetry(model, getChapter2Part1Prompt(enrichedDetails), { temperature: 0.7 });
-  } catch (error) {
-    console.error("Error generating Chapter 2 Part 1:", error);
-    c2Part1 = "Error generating Conceptual & Theoretical Framework.";
-  }
-
-  yield { progress: 58, message: 'Writing Chapter 2: Literature Review (Part 2)...', section: 'processing', content: '' };
-  let c2Part2 = "";
-  try {
-    c2Part2 = await generateContentWithRetry(model, getChapter2Part2Prompt(enrichedDetails), { temperature: 0.7 });
-  } catch (error) {
-    console.error("Error generating Chapter 2 Part 2:", error);
-    c2Part2 = "Error generating Empirical Studies & Summary.";
-  }
-  
-  yield { progress: 65, message: 'Completed Chapter 2', section: 'chapter2', content: cleanContent(c2Part1 + "\n\n" + c2Part2) };
-
-  // Chapter 3
-  yield { progress: 68, message: 'Writing Chapter 3: Methodology...', section: 'processing', content: '' };
-  try {
-    const c3 = await generateContentWithRetry(model, getChapter3Prompt(enrichedDetails), { temperature: 0.7 });
-    yield { progress: 75, message: 'Completed Chapter 3', section: 'chapter3', content: cleanContent(c3) };
-  } catch (error) {
-    yield { progress: 75, message: 'Error in Chapter 3', section: 'chapter3', content: "Error generating Chapter 3." };
-  }
-
-  // 4. Special Handling for Chapter 4 (Results) - High Quality & "Thinking"
-  yield { progress: 78, message: 'Analyzing Data for Chapter 4...', section: 'processing', content: '' };
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Artificial delay for "analysis"
-  
-  yield { progress: 80, message: 'Constructing Data Tables (Section A)...', section: 'processing', content: '' };
-  let c4Part1 = "";
-  try {
-    // Use a slightly higher temperature or specific config if needed, but standard is fine with good prompt
-    c4Part1 = await generateContentWithRetry(model, getChapter4Part1Prompt(enrichedDetails), { 
-      temperature: 0.5, // Lower temp for more precise data
-    });
-  } catch (error) {
-    console.error("Error generating Chapter 4 Part 1:", error);
-    c4Part1 = "Error generating Research Question Tables.";
-  }
-
-  yield { progress: 85, message: 'Testing Hypotheses (Section B)...', section: 'processing', content: '' };
-  let c4Part2 = "";
-  try {
-    c4Part2 = await generateContentWithRetry(model, getChapter4Part2Prompt(enrichedDetails), { 
-      temperature: 0.5,
-    });
-  } catch (error) {
-    console.error("Error generating Chapter 4 Part 2:", error);
-    c4Part2 = "Error generating Hypothesis Tests.";
-  }
-    
-  yield { progress: 88, message: 'Refining Tables & Formatting...', section: 'processing', content: '' };
-  const fullC4 = c4Part1 + "\n\n" + c4Part2;
-  const refinedC4 = refineChapter4Content(cleanContent(fullC4));
-  
-  yield { 
-    progress: 90, 
-    message: 'Completed Chapter 4', 
-    section: 'chapter4', 
-    content: refinedC4 
-  };
-
-  // 5. Chapter 5 & References & Appendices
-  const finalSections = [
-    { key: 'chapter5', message: 'Writing Chapter 5: Discussion...', prompt: getChapter5Prompt(enrichedDetails), weight: 5 },
-    { key: 'references', message: 'Compiling References...', prompt: getReferencesPrompt(enrichedDetails), weight: 3 },
-    { key: 'appendices', message: 'Creating Questionnaire...', prompt: getAppendixPrompt(enrichedDetails), weight: 2 },
-  ];
-
-  let currentProgress = 90;
-  for (const section of finalSections) {
-    yield { progress: currentProgress, message: section.message, section: 'processing', content: '' };
+  let c1Success = false;
+  let c1Attempts = 0;
+  while (!c1Success && c1Attempts < 3) {
     try {
-      const content = await generateContentWithRetry(model, section.prompt, { temperature: 0.7 });
-      currentProgress += section.weight;
-      yield { 
-        progress: Math.min(98, Math.round(currentProgress)), 
-        message: `Completed ${section.key}`, 
-        section: section.key, 
-        content: cleanContent(content) 
-      };
+      c1Attempts++;
+      const c1 = await generateContentWithRetry(model, getChapter1Prompt(enrichedDetails), { temperature: 0.7 });
+      yield { progress: 50, message: 'Completed Chapter 1', section: 'chapter1', content: cleanContent(c1) };
+      c1Success = true;
     } catch (error) {
-      yield { progress: currentProgress, message: `Error in ${section.key}`, section: section.key, content: "Error." };
+      console.error(`Error generating Chapter 1 (Attempt ${c1Attempts}):`, error);
+      if (c1Attempts >= 3) {
+        yield { progress: 50, message: 'Error in Chapter 1', section: 'chapter1', content: "Error generating Chapter 1. Please try again." };
+      } else {
+        yield { progress: 45, message: `Retrying Chapter 1 (Attempt ${c1Attempts + 1})...`, section: 'processing', content: '' };
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
   }
 
-  // 6. Final Plagiarism Check Simulation
-  yield { progress: 99, message: 'Finalizing & Checking Plagiarism...', section: 'processing', content: '' };
-  await new Promise(resolve => setTimeout(resolve, 2000)); // Artificial delay
+  // Chapter 2
+  yield { progress: 52, message: 'Writing Chapter 2: Literature Review...', section: 'processing', content: '' };
+  let c2Success = false;
+  let c2Attempts = 0;
+  while (!c2Success && c2Attempts < 3) {
+    try {
+      c2Attempts++;
+      const c2 = await generateContentWithRetry(model, getChapter2Prompt(enrichedDetails), { temperature: 0.7 });
+      yield { progress: 65, message: 'Completed Chapter 2', section: 'chapter2', content: cleanContent(c2) };
+      c2Success = true;
+    } catch (error) {
+      console.error(`Error generating Chapter 2 (Attempt ${c2Attempts}):`, error);
+      if (c2Attempts >= 3) {
+        yield { progress: 65, message: 'Error in Chapter 2', section: 'chapter2', content: "Error generating Chapter 2." };
+      } else {
+        yield { progress: 52, message: `Retrying Chapter 2 (Attempt ${c2Attempts + 1})...`, section: 'processing', content: '' };
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
 
+  // Chapter 3
+  yield { progress: 68, message: 'Writing Chapter 3: Methodology...', section: 'processing', content: '' };
+  let c3Success = false;
+  let c3Attempts = 0;
+  while (!c3Success && c3Attempts < 3) {
+    try {
+      c3Attempts++;
+      const c3 = await generateContentWithRetry(model, getChapter3Prompt(enrichedDetails), { temperature: 0.7 });
+      yield { progress: 75, message: 'Completed Chapter 3', section: 'chapter3', content: cleanContent(c3) };
+      c3Success = true;
+    } catch (error) {
+      console.error(`Error generating Chapter 3 (Attempt ${c3Attempts}):`, error);
+      if (c3Attempts >= 3) {
+        yield { progress: 75, message: 'Error in Chapter 3', section: 'chapter3', content: "Error generating Chapter 3." };
+      } else {
+        yield { progress: 68, message: `Retrying Chapter 3 (Attempt ${c3Attempts + 1})...`, section: 'processing', content: '' };
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+
+  // Chapter 4
+  yield { progress: 78, message: 'Analyzing Data for Chapter 4...', section: 'processing', content: '' };
+  await new Promise(resolve => setTimeout(resolve, 1500)); 
+  
+  yield { progress: 80, message: 'Writing Chapter 4: Results & Discussion...', section: 'processing', content: '' };
+  let c4Success = false;
+  let c4Attempts = 0;
+  while (!c4Success && c4Attempts < 3) {
+    try {
+      c4Attempts++;
+      const c4 = await generateContentWithRetry(model, getChapter4Prompt(enrichedDetails), { 
+        temperature: 0.5, 
+      });
+      
+      yield { progress: 88, message: 'Refining Tables & Formatting...', section: 'processing', content: '' };
+      const refinedC4 = refineChapter4Content(cleanContent(c4));
+      
+      yield { 
+        progress: 90, 
+        message: 'Completed Chapter 4', 
+        section: 'chapter4', 
+        content: refinedC4 
+      };
+      c4Success = true;
+    } catch (error) {
+      console.error(`Error generating Chapter 4 (Attempt ${c4Attempts}):`, error);
+      if (c4Attempts >= 3) {
+        yield { progress: 90, message: 'Error in Chapter 4', section: 'chapter4', content: "Error generating Chapter 4. Please try again." };
+      } else {
+        yield { progress: 80, message: `Retrying Chapter 4 (Attempt ${c4Attempts + 1})...`, section: 'processing', content: '' };
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+
+  // Chapter 5
+  yield { progress: 92, message: 'Writing Chapter 5: Discussion...', section: 'processing', content: '' };
+  let c5Success = false;
+  let c5Attempts = 0;
+  while (!c5Success && c5Attempts < 3) {
+    try {
+      c5Attempts++;
+      const c5p1 = await generateContentWithRetry(model, getChapter5Part1Prompt(enrichedDetails), { temperature: 0.7 });
+      const c5p2 = await generateContentWithRetry(model, getChapter5Part2Prompt(enrichedDetails), { temperature: 0.7 });
+      yield { 
+        progress: 98, 
+        message: 'Completed Chapter 5', 
+        section: 'chapter5', 
+        content: cleanContent(c5p1) + "\n\n" + cleanContent(c5p2)
+      };
+      c5Success = true;
+    } catch (error) {
+      console.error(`Error generating Chapter 5 (Attempt ${c5Attempts}):`, error);
+      if (c5Attempts >= 3) {
+        yield { progress: 98, message: 'Error in Chapter 5', section: 'chapter5', content: "Error generating Chapter 5. Please try again." };
+      } else {
+        yield { progress: 92, message: `Retrying Chapter 5 (Attempt ${c5Attempts + 1})...`, section: 'processing', content: '' };
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+
+  // 6. References & Appendices
+  const finalSections = [
+    { key: 'references', message: 'Compiling References...', prompt: getReferencesPrompt(enrichedDetails), weight: 1 },
+    { key: 'appendices', message: 'Creating Questionnaire...', prompt: getAppendixPrompt(enrichedDetails), weight: 1 },
+  ];
+
+  let currentProgress = 98;
+  for (const section of finalSections) {
+    yield { progress: currentProgress, message: section.message, section: 'processing', content: '' };
+    let sectionSuccess = false;
+    let sectionAttempts = 0;
+    while (!sectionSuccess && sectionAttempts < 3) {
+      try {
+        sectionAttempts++;
+        const content = await generateContentWithRetry(model, section.prompt, { temperature: 0.7 });
+        currentProgress += section.weight;
+        yield { 
+          progress: Math.min(100, Math.round(currentProgress)), 
+          message: `Completed ${section.key}`, 
+          section: section.key, 
+          content: cleanContent(content) 
+        };
+        sectionSuccess = true;
+      } catch (error) {
+        console.error(`Error generating ${section.key} (Attempt ${sectionAttempts}):`, error);
+        if (sectionAttempts >= 3) {
+          yield { progress: currentProgress, message: `Error in ${section.key}`, section: section.key, content: "Error." };
+        } else {
+          yield { progress: currentProgress, message: `Retrying ${section.key} (Attempt ${sectionAttempts + 1})...`, section: 'processing', content: '' };
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+  }
+
+  // 7. Final Plagiarism Check Simulation
   yield { progress: 100, message: "Project Generation Complete!", section: 'done', content: '' };
 }
 
@@ -804,19 +880,13 @@ const getListOfAppendicesPrompt = (details: any) => `
   Provide at least 2-3 realistic appendix titles.
 `;
 
-const getChapter5Prompt = (details: any) => `
-  Write **CHAPTER FIVE: DISCUSSION, CONCLUSION, IMPLICATIONS, RECOMMENDATIONS AND SUMMARY** for the project "${details.topic}".
+const getChapter5Part1Prompt = (details: any) => `
+  Write **CHAPTER FIVE: DISCUSSION (Part 1)** for the project "${details.topic}".
   
   ${TABLE_SYSTEM_INSTRUCTION}
 
   **REQUIRED SUBHEADINGS:**
   - **5.1 Discussion of the Major Findings**: Justify findings against other theoretical and empirical works, provide likely reasons, present evidence that agreed/disagreed. Guided by purpose/RQ/Hypothesis. Each section begins with a caption derived from purpose/RQ/Hypothesis. Where a research question has a corresponding hypothesis, both are discussed together with emphasis on the hypothesis.
-  - **5.2 Conclusions**: Central messages properly integrated (problem, method, results, implications). Emphasis on result and implication. Judgements passed on major findings.
-  - **5.3 Implications of the Findings**: What findings suggest. Use non-assertive words (seems, perhaps, maybe, possibly, likely, appears). One implication per specific purpose.
-  - **5.4 Recommendations**: Directly based on findings.
-  - **5.5 Limitations of the Study**: Methodological inadequacies not initially well understood and controlled. Express major occurrences during field data collection that could not be controlled. Finance is NOT a limitation.
-  - **5.6 Suggestions for Further Study**: Suggest further studies to address limitations of current study.
-  - **5.7 Summary of the Study**: Abridged form of entire research in paragraphs (one per chapter).
 
   **IMPORTANT RULES:**
   - **DO NOT** include the chapter title ("CHAPTER FIVE: ...") in your response.
@@ -826,6 +896,26 @@ const getChapter5Prompt = (details: any) => `
   - Do not start a paragraph with a citation.
   - Use APA 7th edition.
   - DO NOT include chapter title.
+`;
+
+const getChapter5Part2Prompt = (details: any) => `
+  Write **CHAPTER FIVE: CONCLUSION & SUMMARY (Part 2)** for the project "${details.topic}".
+  
+  ${TABLE_SYSTEM_INSTRUCTION}
+
+  **REQUIRED SUBHEADINGS:**
+  - **5.2 Conclusions**: Central messages properly integrated (problem, method, results, implications). Emphasis on result and implication. Judgements passed on major findings.
+  - **5.3 Implications of the Findings**: What findings suggest. Use non-assertive words (seems, perhaps, maybe, possibly, likely, appears). One implication per specific purpose.
+  - **5.4 Recommendations**: Directly based on findings.
+  - **5.5 Limitations of the Study**: Methodological inadequacies not initially well understood and controlled. Express major occurrences during field data collection that could not be controlled. Finance is NOT a limitation.
+  - **5.6 Suggestions for Further Study**: Suggest further studies to address limitations of current study.
+  - **5.7 Summary of the Study**: Abridged form of entire research in paragraphs (one per chapter).
+
+  **IMPORTANT RULES:**
+  - **DO NOT** include the chapter title.
+  - **NO TABLES OR FIGURES.**
+  - **LANGUAGE & STYLE:** Academic tone, third person.
+  - **CRITICAL:** Subheadings must follow the format **5.2 Conclusions**.
 `;
 
 const getReferencesPrompt = (details: any) => `

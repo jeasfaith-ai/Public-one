@@ -149,7 +149,7 @@ router.get('/eligibility', protect, async (req: AuthenticatedRequest, res) => {
     // Fetch dynamic settings
     const { data: settings } = await supabase.from('settings').select('*');
     const projectCostCredits = parseInt(settings?.find(s => s.key === 'project_cost_credits')?.value || '1');
-    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '10000');
+    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '1000');
     const projectCostNaira = projectCostCredits * creditValueNaira;
 
     console.log(`User stats - Credits: ${credits}, Balance: ${balance}, RegNo: ${user.reg_no}`);
@@ -256,7 +256,7 @@ router.post('/', protect, async (req: AuthenticatedRequest, res) => {
     // Fetch dynamic settings
     const { data: settings } = await supabase.from('settings').select('*');
     const projectCostCredits = parseInt(settings?.find(s => s.key === 'project_cost_credits')?.value || '1');
-    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '10000');
+    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '1000');
     const projectCostNaira = projectCostCredits * creditValueNaira;
 
     const balance = user.balance || 0;
@@ -298,13 +298,23 @@ router.post('/', protect, async (req: AuthenticatedRequest, res) => {
       }
 
       // Update user balance and credits
-      await supabase
+      const { error: updateError } = await supabase
         .from('users')
         .update({ 
           balance: newBalance,
           project_credits: newCredits
         })
         .eq('id', req.user.id);
+
+      if (updateError) {
+        console.error('CRITICAL: Failed to deduct balance/credits:', updateError);
+        return res.status(500).json({ 
+          error: 'Failed to process payment. Your balance was not deducted, and the project could not be created.',
+          details: updateError.message 
+        });
+      } else {
+        console.log(`Deducted ${projectCostNaira} (or credits) from user ${req.user.id}. New Balance: ${newBalance}`);
+      }
     }
 
     const { data: project, error } = await supabase
@@ -312,6 +322,7 @@ router.post('/', protect, async (req: AuthenticatedRequest, res) => {
       .insert([{
         user_id: req.user.id,
         topic,
+        department,
         content,
         details: details || {},
         is_premium_generated: true
@@ -424,7 +435,7 @@ router.post('/ppt-deduct', protect, async (req: AuthenticatedRequest, res) => {
 
     // Fetch dynamic settings
     const { data: settings } = await supabase.from('settings').select('*');
-    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '10000');
+    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '1000');
     
     const currentBalance = user.balance || 0;
     const currentCredits = user.project_credits || 0;
@@ -503,12 +514,12 @@ router.post('/defense-deduct', protect, async (req: AuthenticatedRequest, res) =
 
     // Fetch dynamic settings
     const { data: settings } = await supabase.from('settings').select('*');
-    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '10000');
+    const creditValueNaira = parseInt(settings?.find(s => s.key === 'credit_value_naira')?.value || '1000');
     
     const currentBalance = user.balance || 0;
     const currentCredits = user.project_credits || 0;
     
-    // Defense Cost: 1 Credit (₦10,000)
+    // Defense Cost: 1 Credit (₦1,000)
     const costInNaira = creditValueNaira;
 
     if (currentBalance < costInNaira) {

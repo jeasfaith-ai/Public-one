@@ -166,8 +166,8 @@ export default function Dashboard({ onBack, onViewProject: propsOnViewProject, o
       }
     }
 
-    // Premium logic: User has credits OR balance >= 10000 OR has free access flag
-    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess;
+    // Premium logic: User has credits OR balance >= 1000 OR has free access flag
+    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess;
     
     if (isPremium) {
       generateProjectPDF(fullProject.details || {}, fullProject.content || {}, true);
@@ -204,7 +204,7 @@ export default function Dashboard({ onBack, onViewProject: propsOnViewProject, o
     if (!selectedProject || !user?.id) return;
 
     // Premium users get PPT for free
-    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess;
+    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess;
 
     if (isPremium) {
       generatePpt(selectedProject);
@@ -322,7 +322,7 @@ export default function Dashboard({ onBack, onViewProject: propsOnViewProject, o
   };
 
   const handlePptDownload = (project: any) => {
-    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess;
+    const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess;
     if (!isPremium) {
       setPremiumFeatureName('PPT Download');
       setShowPremiumModal(true);
@@ -542,8 +542,8 @@ export default function Dashboard({ onBack, onViewProject: propsOnViewProject, o
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Status</p>
-                  <p className={`text-xs font-bold ${(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess ? 'text-emerald-500' : 'text-slate-500'}`}>
-                    {(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess ? 'PREMIUM' : 'FREE'}
+                  <p className={`text-xs font-bold ${(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess ? 'text-emerald-500' : 'text-slate-500'}`}>
+                    {(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess ? 'PREMIUM' : 'FREE'}
                   </p>
                 </div>
               </div>
@@ -709,9 +709,9 @@ export default function Dashboard({ onBack, onViewProject: propsOnViewProject, o
         <PdfViewer
           pdfUrl={pdfDataUrl}
           onClose={() => setShowPdfViewer(false)}
-          isPremium={(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess}
+          isPremium={(user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess}
           onDownload={() => {
-            const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 10000 || user?.hasFreeAccess;
+            const isPremium = (user?.project_credits || 0) > 0 || (user?.balance || 0) >= 1000 || user?.hasFreeAccess;
             if (isPremium) {
               generateProjectPDF(selectedProject.details || {}, selectedProject.content || {}, true);
             } else {

@@ -131,12 +131,24 @@ export default function App() {
     includeCitations: true,
     figureType: 'Bar Chart'
   });
+
+  // Pre-load critical components when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Pre-load ProjectWriter and ProjectReview
+      const preloadWriter = import('./components/ProjectWriter');
+      const preloadReview = import('./components/ProjectReview');
+      const preloadDashboard = import('./components/Dashboard');
+      
+      console.log('App: Pre-loading critical components...');
+    }
+  }, [user]);
   const [content, setContent] = useState<ProjectContent>(INITIAL_PROJECT_CONTENT);
   const [authLoading, setAuthLoading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [isAppReady, setIsAppReady] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [projectCost, setProjectCost] = useState({ credits: 1, naira: 10000 });
+  const [projectCost, setProjectCost] = useState({ credits: 1, naira: 1000 });
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumFeatureName, setPremiumFeatureName] = useState('');
   const [isPremiumSession, setIsPremiumSession] = useState(false);
@@ -161,7 +173,7 @@ export default function App() {
     
     // Fetch project cost settings
     clientFetch('/api/support/project-cost')
-      .then(res => res.ok ? res.json() : { costInCredits: 1, creditValueNaira: 10000 })
+      .then(res => res.ok ? res.json() : { costInCredits: 1, creditValueNaira: 1000 })
       .then(data => setProjectCost({ credits: data.costInCredits, naira: data.creditValueNaira }))
       .catch(err => console.error('Failed to fetch project cost:', err));
   }, []);

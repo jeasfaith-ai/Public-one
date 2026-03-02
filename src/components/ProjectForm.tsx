@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
@@ -13,11 +14,22 @@ interface ProjectFormProps {
 }
 
 export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, isWriting }: ProjectFormProps) {
+  const [localDetails, setLocalDetails] = useState<ProjectDetails>(details);
+
+  // Sync local state with props if props change (e.g. on back/forward)
+  useEffect(() => {
+    setLocalDetails(details);
+  }, [details]);
+
   const handleChange = (field: keyof ProjectDetails, value: any) => {
-    onUpdateDetails({ ...details, [field]: value });
+    const updated = { ...localDetails, [field]: value };
+    setLocalDetails(updated);
+    // Debounce or just update parent on blur? 
+    // For now, let's update parent immediately but the local state handles the input lag.
+    onUpdateDetails(updated);
   };
 
-  const isValid = details.topic && details.department && details.surname && details.firstName && details.regNo;
+  const isValid = localDetails.topic && localDetails.department && localDetails.surname && localDetails.firstName && localDetails.regNo;
 
   return (
     <motion.div 
@@ -45,7 +57,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Project Topic</label>
           <textarea 
-            value={details.topic} 
+            value={localDetails.topic} 
             onChange={(e) => handleChange('topic', e.target.value)} 
             className="input-field min-h-[100px]" 
             placeholder="Enter your approved project topic..." 
@@ -55,7 +67,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Department</label>
           <select 
-            value={details.department} 
+            value={localDetails.department} 
             onChange={(e) => handleChange('department', e.target.value)} 
             className="input-field"
           >
@@ -68,7 +80,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">University Name</label>
           <input 
             type="text" 
-            value={details.university} 
+            value={localDetails.university} 
             onChange={(e) => handleChange('university', e.target.value)} 
             className="input-field" 
             placeholder="UNIVERSITY OF NIGERIA, NSUKKA" 
@@ -79,7 +91,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Faculty</label>
           <input 
             type="text" 
-            value={details.faculty} 
+            value={localDetails.faculty} 
             onChange={(e) => handleChange('faculty', e.target.value)} 
             className="input-field" 
             placeholder="EDUCATION" 
@@ -90,7 +102,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Academic Session</label>
           <input 
             type="text" 
-            value={details.session} 
+            value={localDetails.session} 
             onChange={(e) => handleChange('session', e.target.value)} 
             className="input-field" 
             placeholder="2025/2026" 
@@ -101,7 +113,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Submission Date (Month, Year)</label>
           <input 
             type="text" 
-            value={details.submissionDate} 
+            value={localDetails.submissionDate} 
             onChange={(e) => handleChange('submissionDate', e.target.value)} 
             className="input-field" 
             placeholder="NOVEMBER 2022" 
@@ -112,7 +124,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Appendix Date (Specific Date)</label>
           <input 
             type="text" 
-            value={details.appendixDate} 
+            value={localDetails.appendixDate} 
             onChange={(e) => handleChange('appendixDate', e.target.value)} 
             className="input-field" 
             placeholder="3rd November, 2022" 
@@ -122,7 +134,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Appendix Address (Researcher's Address Block)</label>
           <textarea 
-            value={details.appendixAddress} 
+            value={localDetails.appendixAddress} 
             onChange={(e) => handleChange('appendixAddress', e.target.value)} 
             className="input-field min-h-[120px]" 
             placeholder="Department of Political Science,..." 
@@ -133,7 +145,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Study Location (State, LGA, Town)</label>
           <input 
             type="text" 
-            value={details.studyLocation} 
+            value={localDetails.studyLocation} 
             onChange={(e) => handleChange('studyLocation', e.target.value)} 
             className="input-field" 
             placeholder="Anambra State, Oyi LGA, Nteje" 
@@ -144,7 +156,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Surname</label>
           <input 
             type="text" 
-            value={details.surname} 
+            value={localDetails.surname} 
             onChange={(e) => handleChange('surname', e.target.value)} 
             className="input-field" 
             placeholder="ACHUFUSI" 
@@ -155,7 +167,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">First Name</label>
           <input 
             type="text" 
-            value={details.firstName} 
+            value={localDetails.firstName} 
             onChange={(e) => handleChange('firstName', e.target.value)} 
             className="input-field" 
             placeholder="JANE" 
@@ -166,7 +178,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Middle Name</label>
           <input 
             type="text" 
-            value={details.middleName} 
+            value={localDetails.middleName} 
             onChange={(e) => handleChange('middleName', e.target.value)} 
             className="input-field" 
             placeholder="NWAKAEGO" 
@@ -177,7 +189,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Researcher Name (Student Name)</label>
           <input 
             type="text" 
-            value={details.researcherName} 
+            value={localDetails.researcherName} 
             onChange={(e) => handleChange('researcherName', e.target.value)} 
             className="input-field" 
             placeholder="JANE NWAKAEGO ACHUFUSI" 
@@ -188,7 +200,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Registration Number</label>
           <input 
             type="text" 
-            value={details.regNo} 
+            value={localDetails.regNo} 
             onChange={(e) => handleChange('regNo', e.target.value)} 
             className="input-field" 
             placeholder="2022632016" 
@@ -199,7 +211,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Supervisor Name</label>
           <input 
             type="text" 
-            value={details.supervisorName} 
+            value={localDetails.supervisorName} 
             onChange={(e) => handleChange('supervisorName', e.target.value)} 
             className="input-field" 
             placeholder="Prof./Dr. Name" 
@@ -210,7 +222,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Head of Department</label>
           <input 
             type="text" 
-            value={details.headOfDepartment} 
+            value={localDetails.headOfDepartment} 
             onChange={(e) => handleChange('headOfDepartment', e.target.value)} 
             className="input-field" 
             placeholder="Prof./Dr. Name" 
@@ -221,7 +233,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Dean, Faculty of Education</label>
           <input 
             type="text" 
-            value={details.deanOfFaculty} 
+            value={localDetails.deanOfFaculty} 
             onChange={(e) => handleChange('deanOfFaculty', e.target.value)} 
             className="input-field" 
             placeholder="Prof. J.C. Omeje" 
@@ -231,7 +243,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Dedication</label>
           <textarea 
-            value={details.dedication} 
+            value={localDetails.dedication} 
             onChange={(e) => handleChange('dedication', e.target.value)} 
             className="input-field min-h-[100px]" 
             placeholder="I dedicate this work to... (Leave empty for system to write)" 
@@ -241,7 +253,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Acknowledgement</label>
           <textarea 
-            value={details.acknowledgement} 
+            value={localDetails.acknowledgement} 
             onChange={(e) => handleChange('acknowledgement', e.target.value)} 
             className="input-field min-h-[100px]" 
             placeholder="I wish to acknowledge... (Leave empty for system to write)" 
@@ -251,7 +263,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-300">Preferred Figure Type (Chapter 4)</label>
           <select 
-            value={details.figureType} 
+            value={localDetails.figureType} 
             onChange={(e) => handleChange('figureType', e.target.value)} 
             className="input-field"
           >
@@ -264,7 +276,7 @@ export default function ProjectForm({ details, onUpdateDetails, onNext, onBack, 
           <label className="text-sm font-medium text-slate-300">Abstract Length</label>
           <input 
             type="text" 
-            value={details.abstractLength || ''} 
+            value={localDetails.abstractLength || ''} 
             onChange={(e) => handleChange('abstractLength', e.target.value)} 
             className="input-field" 
             placeholder="e.g., 18 lines or 250 words (Default: 18 lines)" 
